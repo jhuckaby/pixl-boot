@@ -89,7 +89,7 @@ Add `--script` to specify a custom location of your shell control script, relati
 
 ### linux_runlevels
 
-Add `--linux_runlevels` if you want to customize the [Linux init.d Runlevels](https://en.wikipedia.org/wiki/Runlevel#Linux) for when your service should actually start up.  This defaults to `3,4,5' denoting that your service should start at Runlevels 3, 4 and 5.  Obviously, this only has effect when installing on Linux operating systems.  You only need to add this to the `pixl-boot install` command.  Example:
+Add `--linux_runlevels` if you want to customize the [Linux init.d Runlevels](https://en.wikipedia.org/wiki/Runlevel#Linux) for when your service should actually start up.  This defaults to `3,4,5` denoting that your service should start at Runlevels 3, 4 and 5.  Obviously, this only has effect when installing on Linux operating systems.  You only need to add this to the `pixl-boot install` command.  Example:
 
 ```js
 "scripts": {
@@ -129,7 +129,7 @@ Add `--debian_requires` if you want to customize the list of [Debian services](h
 
 ### debian_stoplevels
 
-Add `--debian_stoplevels` if you want to customize the [Linux init.d Runlevels](https://en.wikipedia.org/wiki/Runlevel#Linux) for when your service should shut down.  This property is only used on Debian (Ubuntu) systems, and defaults to `0,1,6' denoting that your service should stop at Runlevels 0, 1 and 6.  You only need to add this to the `pixl-boot install` command.  Example:
+Add `--debian_stoplevels` if you want to customize the [Linux init.d Runlevels](https://en.wikipedia.org/wiki/Runlevel#Linux) for when your service should shut down.  This property is only used on Debian (Ubuntu) systems, and defaults to `0,1,6` denoting that your service should stop at Runlevels 0, 1 and 6.  You only need to add this to the `pixl-boot install` command.  Example:
 
 ```js
 "scripts": {
