@@ -1,6 +1,6 @@
 {
   "name": "pixl-boot",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Register your service to launch on server startup (Linux / OS X).",
   "author": "Joseph Huckaby <jhuckaby@gmail.com>",
   "homepage": "https://github.com/jhuckaby/pixl-boot",
