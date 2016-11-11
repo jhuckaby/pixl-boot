@@ -35,7 +35,7 @@ if (!cmd.match(/^install|uninstall$/)) {
 
 // default to package.json in cwd
 if (!args.name || !args.script) {
-	var pkg = require('./package.json');
+	var pkg = JSON.parse( loadFile('./package.json') );
 	if (!args.name) args.name = pkg.name;
 	if (!args.script && pkg.bin) {
 		if (typeof(pkg.bin) == 'string') args.script = pkg.bin;
@@ -47,7 +47,7 @@ switch (cmd) {
 	case 'install':
 		if (!args.script) die(usage);
 		
-		print( "\nInstalling startup service: " + args.company + " " + args.name + "..." );
+		print( "\nInstalling startup service: " + args.name + "..." );
 		
 		boot.install(args, function(err) {
 			if (err) {
@@ -62,7 +62,7 @@ switch (cmd) {
 	break;
 	
 	case 'uninstall':
-		print( "\nRemoving startup service: " + args.company + " " + args.name + "..." );
+		print( "\nRemoving startup service: " + args.name + "..." );
 		
 		boot.uninstall(args, function(err) {
 			if (err) {
