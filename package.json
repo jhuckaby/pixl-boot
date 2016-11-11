@@ -1,0 +1,30 @@
+{
+  "name": "pixl-boot",
+  "version": "1.0.0",
+  "description": "Register your service to launch on server startup (Linux / OS X).",
+  "author": "Joseph Huckaby <jhuckaby@gmail.com>",
+  "homepage": "https://github.com/jhuckaby/pixl-boot",
+  "license": "MIT",
+  "main": "boot.js",
+  "bin": "cli.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jhuckaby/pixl-boot"
+  },
+  "bugs": {
+    "url": "https://github.com/jhuckaby/pixl-boot/issues"
+  },
+  "keywords": [
+    "startup",
+    "boot",
+    "restart",
+    "reboot",
+    "linux",
+    "darwin",
+    "init.d",
+    "launchd"
+  ],
+  "dependencies": {
+    "pixl-cli": "^1.0.0"
+  }
+}
