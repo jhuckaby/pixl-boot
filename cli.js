@@ -43,11 +43,14 @@ if (!args.name || !args.script) {
 	}
 }
 
+// if running from npm, a blank line will be added already
+if (!process.env['npm_package_name']) print("\n");
+
 switch (cmd) {
 	case 'install':
 		if (!args.script) die(usage);
 		
-		print( "\nInstalling startup service: " + args.name + "..." );
+		print( "Installing startup service: " + args.name + "..." );
 		
 		boot.install(args, function(err) {
 			if (err) {
@@ -62,7 +65,7 @@ switch (cmd) {
 	break;
 	
 	case 'uninstall':
-		print( "\nRemoving startup service: " + args.name + "..." );
+		print( "Removing startup service: " + args.name + "..." );
 		
 		boot.uninstall(args, function(err) {
 			if (err) {
