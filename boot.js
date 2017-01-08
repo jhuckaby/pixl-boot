@@ -115,7 +115,7 @@ module.exports = {
 			"",
 			"### BEGIN INIT INFO",
 			"# Provides:          " + args.service_name,
-			"# Required-Start:    " + args.debian_requires,
+			"# Required-Start:    " + deb_requires,
 			"# Required-Stop:     " + deb_requires,
 			"# Default-Start:     " + runlevels,
 			"# Default-Stop:      " + deb_stoplevels,
@@ -132,10 +132,12 @@ module.exports = {
 			
 			// activate service
 			cp.exec("update-rc.d " + args.service_name + " defaults", function(err, stdout, stderr) {
-				if (err) callback( new Error("Failed to activate service: " + args.service_name + ": " + err.message) );
-				
-				// success
-				callback();
+				if (err) {
+					callback( new Error("Failed to activate service: " + args.service_name + ": " + err.message) );
+				} else {
+					// success
+					callback();
+				}
 			}); // cp.exec
 		}); // fs.writeFile
 	},
