@@ -1,7 +1,8 @@
 // PixlBoot API
 // Install service to run on server startup
 // Works on Linux (RedHat / Ubuntu) and OS X
-// Copyright (c) 2016 Joseph Huckaby and PixlCore.com
+// Copyright (c) 2016 - 2019 Joseph Huckaby and PixlCore.com
+// MIT License
 
 var fs = require('fs');
 var cp = require('child_process');
@@ -13,11 +14,19 @@ module.exports = {
 		company: "Node",
 		script: "bin/control.sh",
 		
+		// systemd stuff (modern)
+		linux_type: "forking",
+		linux_after: "network.target",
+		linux_wanted_by: "multi-user.target",
+		
+		// init.d stuff (legacy)
 		linux_runlevels: "3,4,5",
 		redhat_start_priority: "99",
 		redhat_stop_priority: "01",
 		debian_requires: "local_fs remote_fs network syslog named",
 		debian_stoplevels: "0,1,6",
+		
+		// mac stuff
 		darwin_type: "agent"
 	},
 	
@@ -45,36 +54,87 @@ module.exports = {
 	},
 	
 	install_linux: function(args, callback) {
-		// install linux init.d service
+		// install linux systemd or init.d service
 		// first determine if we're on RedHat (CentOS / Fedora) or Debian (Ubuntu)
 		var self = this;
 		
 		args.service_name = args.name.toLowerCase().replace(/\W+/g, '');
-		args.service_file = "/etc/init.d/" + args.service_name;
 		
-		cp.exec("which chkconfig", function(err, stdout, stderr) {
+		cp.exec("which systemctl", function(err, stdout, stderr) {
 			if (err) {
-				// not redhat, but are we on debian?
-				cp.exec("which update-rc.d", function(err, stdout, stderr) {
+				// oops, try one of the legacy methods
+				cp.exec("which chkconfig", function(err, stdout, stderr) {
 					if (err) {
-						// not a supported linux platform
-						callback( new Error("Unsupported platform: No chkconfig nor update-rc.d found.") );
+						// not redhat, but are we on debian?
+						cp.exec("which update-rc.d", function(err, stdout, stderr) {
+							if (err) {
+								// not a supported linux platform
+								callback( new Error("Unsupported platform: No systemctl, chkconfig nor update-rc.d found.") );
+							}
+							else {
+								// we're on legacy debian
+								self.install_linux_debian(args, callback);
+							}
+						});
 					}
 					else {
-						// we're on debian
-						self.install_linux_debian(args, callback);
+						// we're on legacy redhat
+						self.install_linux_redhat(args, callback);
 					}
 				});
+				return;
 			}
 			else {
-				// we're on redhat
-				self.install_linux_redhat(args, callback);
+				// proceed with modern linux systemd
+				self.install_linux_systemd(args, callback);
 			}
 		});
 	},
 	
+	install_linux_systemd: function(args, callback) {
+		// install service on linux with systemd (systemctl)
+		args.service_file = "/etc/systemd/system/" + args.service_name + ".service";
+		var service_type = args.linux_type;
+		var unit_after = args.linux_after;
+		var wanted_by = args.linux_wanted_by;
+		
+		var service_contents = [
+			"[Unit]",
+			"Description=" + args.company + " " + args.name,
+			"After=" + unit_after,
+			"",
+			"[Service]",
+			"Type=" + service_type,
+			"ExecStart=" + args.script + " start",
+			"ExecStop=" + args.script + " stop",
+			"",
+			"[Install]",
+			"WantedBy=" + wanted_by
+		].join("\n") + "\n";
+		
+		// write init.d config file
+		fs.writeFile( args.service_file, service_contents, { mode: 0o644 }, function(err) {
+			if (err) return callback( new Error("Failed to write file: " + args.service_file + ": " + err.message) );
+			
+			// reload systemd
+			cp.exec("systemctl daemon-reload", function(err, stdout, stderr) {
+				if (err) callback( new Error("Failed to activate service: " + args.service_name + ": " + err.message) );
+				
+				// activate service
+				cp.exec("systemctl enable " + args.service_name + ".service", function(err, stdout, stderr) {
+					if (err) callback( new Error("Failed to activate service: " + args.service_name + ": " + err.message) );
+					
+					// success
+					callback();
+				}); // cp.exec
+			}); // cp.exec
+		}); // fs.writeFile
+	},
+	
 	install_linux_redhat: function(args, callback) {
 		// install service on redhat (chkconfig)
+		// (this is legacy, only used if systemd/systemctl is not on system)
+		args.service_file = "/etc/init.d/" + args.service_name;
 		var runlevels = args.linux_runlevels.toString().replace(/\D+/g, '');
 		var rh_start_priority = this.zeroPad(args.redhat_start_priority, 2);
 		var rh_stop_priority = this.zeroPad(args.redhat_stop_priority, 2);
@@ -106,6 +166,8 @@ module.exports = {
 	
 	install_linux_debian: function(args, callback) {
 		// install service on debian (update-rc.d)
+		// (this is legacy, only used if systemd/systemctl is not on system)
+		args.service_file = "/etc/init.d/" + args.service_name;
 		var runlevels = args.linux_runlevels.toString().replace(/\D+/g, '').split('').join(" ");
 		var deb_stoplevels = args.debian_stoplevels.toString().replace(/\D+/g, '').split('').join(" ");
 		var deb_requires = args.debian_requires.split(/\W+/).map( function(req) { return '$' + req; } ).join(" ");
@@ -194,15 +256,30 @@ module.exports = {
 		
 		args.service_name = args.name.toLowerCase().replace(/\W+/g, '');
 		args.company_name = args.company.toLowerCase().replace(/\W+/g, '');
-		args.service_file = "/etc/init.d/" + args.service_name;
 		
 		if (process.platform == 'linux') {
-			// chkconfig may or may not work, so ignore error
-			cp.exec( "chkconfig " + args.service_name + " off", function() {
-				cp.exec( "rm -f /etc/rc*.d/*" + args.service_name, function() {
+			// try every which way to remove service
+			args.service_file = "/etc/systemd/system/" + args.service_name + ".service";
+			
+			fs.access( args.service_file, function(err) {
+				if (err) {
+					// nope, try legacy methods
+					args.service_file = "/etc/init.d/" + args.service_name;
+					
+					// chkconfig may or may not work, so ignore error
+					cp.exec( "chkconfig " + args.service_name + " off", function() {
+						cp.exec( "rm -f /etc/rc*.d/*" + args.service_name, function() {
+							fs.unlink( args.service_file, callback );
+						} );
+					} );
+					return;
+				}
+				
+				// looks like we have a systemd service
+				cp.exec( "systemctl disable " + args.service_name + ".service", function() {
 					fs.unlink( args.service_file, callback );
 				} );
-			} );
+			}); // fs.access
 		}
 		else {
 			// non-linux (darwin)

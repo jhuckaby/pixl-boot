@@ -1,6 +1,6 @@
 # Overview
 
-`pixl-boot` will automatically register a startup service for your module on Linux and OS X, so your daemon will be started on a server reboot.  It is configured entirely out of your [package.json](https://docs.npmjs.com/files/package.json) file, and will handle all the details of registering an [init.d service](https://bash.cyberciti.biz/guide//etc/init.d) on Linux, or a [LaunchAgent/LaunchDaemon](https://developer.apple.com/library/content/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html) on OS X.
+`pixl-boot` will automatically register a startup service for your module on Linux and OS X, so your daemon will be started on a server reboot.  It is configured entirely out of your [package.json](https://docs.npmjs.com/files/package.json) file, and will handle all the details of registering a [systemd service](https://en.wikipedia.org/wiki/Systemd) on Linux, or a [LaunchAgent/LaunchDaemon](https://developer.apple.com/library/content/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html) on OS X.
 
 This is only designed for packages that are installed as the root user.
 
@@ -10,7 +10,7 @@ First, add the `pixl-boot` package in the `dependencies` section of your `packag
 
 ```js
 "dependencies": {
-	"pixl-boot": "^1.0.0"
+	"pixl-boot": "^2.0.0"
 }
 ```
 
@@ -87,53 +87,33 @@ Add `--script` to specify a custom location of your shell control script, relati
 }
 ```
 
-### linux_runlevels
+### linux_type
 
-Add `--linux_runlevels` if you want to customize the [Linux init.d Runlevels](https://en.wikipedia.org/wiki/Runlevel#Linux) for when your service should actually start up.  This defaults to `3,4,5` denoting that your service should start at Runlevels 3, 4 and 5.  Obviously, this only has effect when installing on Linux operating systems.  You only need to add this to the `pixl-boot install` command.  Example:
+Add `--linux_type` if you want to customize the Linux systemd service type.  It should be one of `simple`, `forking`, `oneshot`, `dbus`, `notify`, or `idle`.  It defaults to `forking`.  Example:
 
 ```js
 "scripts": {
-	"postinstall": "pixl-boot install --linux_runlevels 3,4,5"
+	"postinstall": "pixl-boot install --linux_type forking"
 }
 ```
 
-### redhat_start_priority
+### linux_after
 
-Add `--redhat_start_priority` if you want to customize the [Linux init.d start priority](http://www.tldp.org/HOWTO/HighQuality-Apps-HOWTO/boot.html), which is a number from `01` to `99`.  This controls when your service should start up, in relation to all the other services on the machine.  This is only used by RedHat (CentOS / Fedora) flavors of Linux, and defaults to `99` (i.e. only start after everything else has).  You only need to add this to the `pixl-boot install` command.  Example:
+Add `--linux_after` if you want to specify a service that we must start *after*.  This defaults to `network.target`, denoting that the server should have basic networking started before trying to start our service.  Example:
 
 ```js
 "scripts": {
-	"postinstall": "pixl-boot install --redhat_start_priority 99"
+	"postinstall": "pixl-boot install --linux_after network.target"
 }
 ```
 
-### redhat_stop_priority
+### linux_wanted_by
 
-Add `--redhat_stop_priority` if you want to customize the [Linux init.d stop priority](http://www.tldp.org/HOWTO/HighQuality-Apps-HOWTO/boot.html), which is a number from `01` to `99`.  This controls when your service should shut down, in relation to all the other services on the machine.  This is only used by RedHat (CentOS / Fedora) flavors of Linux, and defaults to `01` (i.e. stop first, before anything else).  You only need to add this to the `pixl-boot install` command.  Example:
-
-```js
-"scripts": {
-	"postinstall": "pixl-boot install --redhat_stop_priority 01"
-}
-```
-
-### debian_requires
-
-Add `--debian_requires` if you want to customize the list of [Debian services](https://wiki.debian.org/LSBInitScripts) that should be started *before* your service.  For example, it is common to list things like `network` if your daemon requires network access.  This defaults to `local_fs remote_fs network syslog named`.  You only need to add this to the `pixl-boot install` command.  Example:
+Add `--linux_wanted_by` if you want to customize the `WantedBy` property in the systemd service file.  This defaults to `multi-user.target`.  Example:
 
 ```js
 "scripts": {
-	"postinstall": "pixl-boot install --debian_requires local_fs remote_fs network syslog named"
-}
-```
-
-### debian_stoplevels
-
-Add `--debian_stoplevels` if you want to customize the [Linux init.d Runlevels](https://en.wikipedia.org/wiki/Runlevel#Linux) for when your service should shut down.  This property is only used on Debian (Ubuntu) systems, and defaults to `0,1,6` denoting that your service should stop at Runlevels 0, 1 and 6.  You only need to add this to the `pixl-boot install` command.  Example:
-
-```js
-"scripts": {
-	"postinstall": "pixl-boot install --debian_stoplevels 0,1,6"
+	"postinstall": "pixl-boot install --linux_wanted_by multi-user.target"
 }
 ```
 
@@ -183,11 +163,9 @@ var opts = {
 	name: "MyService",
 	company: "Node",
 	script: "bin/control.sh",
-	linux_runlevels: "3,4,5",
-	redhat_start_priority: "99",
-	redhat_stop_priority: "01",
-	debian_requires: "local_fs remote_fs network syslog named",
-	debian_stoplevels: "0,1,6",
+	linux_type: "forking",
+	linux_after: "network.target",
+	linux_wanted_by: "multi-user.target",
 	darwin_type: "agent"
 };
 
@@ -206,7 +184,7 @@ boot.uninstall(opts, function(err) {
 
 The MIT License
 
-Copyright (c) 2016 Joseph Huckaby.
+Copyright (c) 2016 - 2019 Joseph Huckaby.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
