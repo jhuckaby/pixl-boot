@@ -1,6 +1,6 @@
 # Overview
 
-`pixl-boot` will automatically register a startup service for your module on Linux and OS X, so your daemon will be started on a server reboot.  It is configured entirely out of your [package.json](https://docs.npmjs.com/files/package.json) file, and will handle all the details of registering a [systemd service](https://en.wikipedia.org/wiki/Systemd) on Linux, or a [LaunchAgent/LaunchDaemon](https://developer.apple.com/library/content/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html) on OS X.
+`pixl-boot` will automatically register a startup service for your module on Linux and macOS, so your daemon will be started on a server reboot.  It is configured entirely out of your [package.json](https://docs.npmjs.com/files/package.json) file, and will handle all the details of registering a [systemd service](https://en.wikipedia.org/wiki/Systemd) on Linux, or a [LaunchAgent/LaunchDaemon](https://developer.apple.com/library/content/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html) on macOS.
 
 This is only designed for packages that are installed as the root user.
 
@@ -22,18 +22,7 @@ Once you have your control script ready, link to it in the `bin` property in you
 "bin": "bin/control.sh",
 ```
 
-Finally, you need to have npm run `pixl-boot` on install and uninstall of your package, so that it has a chance to register and unregister your startup service.  Do this by adding `postinstall` and `preuninstall` properties in the `scripts` section of your `package.json` file:
-
-```js
-"scripts": {
-	"postinstall": "pixl-boot install",
-	"preuninstall": "pixl-boot uninstall"
-}
-```
-
-That's it!
-
-Alternatively, if you would rather the startup service not be installed automatically, and instead require additional user commands, change the `scripts` property names to something custom, like `boot` and `unboot`:
+Finally, you need to have npm run `pixl-boot` on install and uninstall of your package, so that it has a chance to register and unregister your startup service.  Do this by adding `boot` and `unboot` properties in the `scripts` section of your `package.json` file:
 
 ```js
 "scripts": {
@@ -42,9 +31,9 @@ Alternatively, if you would rather the startup service not be installed automati
 }
 ```
 
-Then your users would need to be instructed to type:
+Then your users need to be instructed to type:
 
-```
+```sh
 npm run boot
 npm run unboot
 ```
@@ -61,8 +50,8 @@ Add `--name` if you want to customize the startup service name.  This defaults t
 
 ```js
 "scripts": {
-	"postinstall": "pixl-boot install --name mycustomservice",
-	"preuninstall": "pixl-boot uninstall --name mycustomservice"
+	"boot": "pixl-boot install --name mycustomservice",
+	"unboot": "pixl-boot uninstall --name mycustomservice"
 }
 ```
 
@@ -72,8 +61,8 @@ Add `--company` if you want to customize the "company" (organization) name that 
 
 ```js
 "scripts": {
-	"postinstall": "pixl-boot install --company MyCompany",
-	"preuninstall": "pixl-boot uninstall --company MyCompany"
+	"boot": "pixl-boot install --company MyCompany",
+	"unboot": "pixl-boot uninstall --company MyCompany"
 }
 ```
 
@@ -83,7 +72,7 @@ Add `--script` to specify a custom location of your shell control script, relati
 
 ```js
 "scripts": {
-	"postinstall": "pixl-boot install --script bin/my-control-script.sh"
+	"boot": "pixl-boot install --script bin/my-control-script.sh"
 }
 ```
 
@@ -93,7 +82,7 @@ Add `--linux_type` if you want to customize the Linux systemd service type.  It 
 
 ```js
 "scripts": {
-	"postinstall": "pixl-boot install --linux_type forking"
+	"boot": "pixl-boot install --linux_type forking"
 }
 ```
 
@@ -103,7 +92,7 @@ Add `--linux_after` if you want to specify a service that we must start *after*.
 
 ```js
 "scripts": {
-	"postinstall": "pixl-boot install --linux_after network.target"
+	"boot": "pixl-boot install --linux_after network.target"
 }
 ```
 
@@ -113,17 +102,17 @@ Add `--linux_wanted_by` if you want to customize the `WantedBy` property in the 
 
 ```js
 "scripts": {
-	"postinstall": "pixl-boot install --linux_wanted_by multi-user.target"
+	"boot": "pixl-boot install --linux_wanted_by multi-user.target"
 }
 ```
 
 ### darwin_type
 
-Add `--darwin_type` to customize the type of startup service you want on Darwin (OS X) systems.  Darwin supports two different types of startup services, [LaunchAgents and LaunchDaemons](https://developer.apple.com/library/content/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html).  In short, a `LaunchAgent` only starts up when a user log in, while a `LaunchDaemon` starts up earlier, before any user logs in.  The default type is `LaunchAgent`, but beware of changing this to `LaunchDaemon`, because this may start your service before things like network are available.  You only need to add this to the `pixl-boot install` command.  Example:
+Add `--darwin_type` to customize the type of startup service you want on Darwin (macOS) systems.  Darwin supports two different types of startup services, [LaunchAgents and LaunchDaemons](https://developer.apple.com/library/content/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html).  In short, a `LaunchAgent` only starts up when a user log in, while a `LaunchDaemon` starts up earlier, before any user logs in.  The default type is `LaunchAgent`, but beware of changing this to `LaunchDaemon`, because this may start your service before things like network are available.  You only need to add this to the `pixl-boot install` command.  Example:
 
 ```js
 "scripts": {
-	"postinstall": "pixl-boot install --darwin_type LaunchAgent"
+	"boot": "pixl-boot install --darwin_type LaunchAgent"
 }
 ```
 
@@ -158,8 +147,8 @@ require('fs').writeFileSync( "logs/pid.txt", process.pid );
 In addition to the command-line interface for `pixl-boot` there is also a JavaScript API you can use in your Node.js code, to install and/or uninstall startup services.  To use this, first call `require('pixl-boot)` to load the module, and the returned object exposes `install()` and `uninstall()` functions.  Both functions accept an options object, and a callback.  The options object accepts all the named command-line arguments, sans the hyphens.  Example use:
 
 ```js
-var boot = require('pixl-boot');
-var opts = {
+const boot = require('pixl-boot');
+let opts = {
 	name: "MyService",
 	company: "Node",
 	script: "bin/control.sh",
@@ -182,9 +171,9 @@ boot.uninstall(opts, function(err) {
 
 # Licenses
 
-The MIT License
+**The MIT License**
 
-Copyright (c) 2016 - 2019 Joseph Huckaby.
+Copyright (c) 2016 - 2024 Joseph Huckaby.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
