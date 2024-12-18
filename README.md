@@ -106,16 +106,6 @@ Add `--linux_wanted_by` if you want to customize the `WantedBy` property in the 
 }
 ```
 
-### darwin_type
-
-Add `--darwin_type` to customize the type of startup service you want on Darwin (macOS) systems.  Darwin supports two different types of startup services, [LaunchAgents and LaunchDaemons](https://developer.apple.com/library/content/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html).  In short, a `LaunchAgent` only starts up when a user log in, while a `LaunchDaemon` starts up earlier, before any user logs in.  The default type is `LaunchAgent`, but beware of changing this to `LaunchDaemon`, because this may start your service before things like network are available.  You only need to add this to the `pixl-boot install` command.  Example:
-
-```js
-"scripts": {
-	"boot": "pixl-boot install --darwin_type LaunchAgent"
-}
-```
-
 ## Sample Shell Control Script
 
 Your module is expected to provide a simple shell (or Node.js) control script, which will start and stop your daemon based on CLI commands.  Stopping your daemon from a shell script is usually accomplished by using a [PID File](https://en.wikipedia.org/wiki/Process_identifier#Pidfile).  If you do not have one of these scripts handy, we provide a sample one for you:
@@ -154,8 +144,7 @@ let opts = {
 	script: "bin/control.sh",
 	linux_type: "forking",
 	linux_after: "network.target",
-	linux_wanted_by: "multi-user.target",
-	darwin_type: "agent"
+	linux_wanted_by: "multi-user.target"
 };
 
 // install startup service

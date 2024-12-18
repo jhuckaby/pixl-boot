@@ -24,10 +24,7 @@ module.exports = {
 		redhat_start_priority: "99",
 		redhat_stop_priority: "01",
 		debian_requires: "local_fs remote_fs network syslog named",
-		debian_stoplevels: "0,1,6",
-		
-		// mac stuff
-		darwin_type: "agent"
+		debian_stoplevels: "0,1,6"
 	},
 	
 	install: function(args, callback) {
@@ -208,7 +205,15 @@ module.exports = {
 		// install service as Darwin (OS X) agent or daemon
 		args.service_name = args.name.toLowerCase().replace(/\W+/g, '');
 		args.company_name = args.company.toLowerCase().replace(/\W+/g, '');
-		args.plist_file = "/Library/" + (args.darwin_type.match(/agent/i) ? 'LaunchAgents' : 'LaunchDaemons') + "/com." + args.company_name + "." + args.service_name + ".plist";
+		
+		if (process.getuid() == 0) {
+			// we're root, so install a LaunchDaemon
+			args.plist_file = "/Library/LaunchDaemons/com." + args.company_name + "." + args.service_name + ".plist";
+		}
+		else {
+			// we're a standard user, so install a user-level LaunchAgent
+			args.plist_file = process.env.HOME + "/Library/LaunchAgents/com." + args.company_name + "." + args.service_name + ".plist";
+		}
 		
 		var plist_contents = [
 			'<?xml version="1.0" encoding="UTF-8"?>',
@@ -233,14 +238,7 @@ module.exports = {
 		// write plist config file
 		fs.writeFile( args.plist_file, plist_contents, { mode: '644' }, function(err) {
 			if (err) return callback( new Error("Failed to write file: " + args.plist_file + ": " + err.message) );
-			
-			// must be root/wheel
-			cp.exec( "chown root:wheel " + args.plist_file, function(err) {
-				if (err) return callback( new Error("Failed to chmod plist file: " + args.plist_file + ": " + err.message) );
-				
-				// success
-				callback();
-			});
+			callback();
 		});
 	},
 	
@@ -283,7 +281,14 @@ module.exports = {
 		}
 		else {
 			// non-linux (darwin)
-			args.plist_file = "/Library/" + (args.darwin_type.match(/agent/i) ? 'LaunchAgents' : 'LaunchDaemons') + "/com." + args.company_name + "." + args.service_name + ".plist";
+			if (process.getuid() == 0) {
+				// we're root, so uninstall the LaunchDaemon
+				args.plist_file = "/Library/LaunchDaemons/com." + args.company_name + "." + args.service_name + ".plist";
+			}
+			else {
+				// we're a standard user, so uninstall the user-level LaunchAgent
+				args.plist_file = process.env.HOME + "/Library/LaunchAgents/com." + args.company_name + "." + args.service_name + ".plist";
+			}
 			
 			fs.unlink( args.plist_file, callback );
 		}
