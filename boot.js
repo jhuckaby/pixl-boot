@@ -104,6 +104,7 @@ module.exports = {
 			"Type=" + service_type,
 			"ExecStart=" + args.script + " start",
 			"ExecStop=" + args.script + " stop",
+			"KillMode=none",
 			"",
 			"[Install]",
 			"WantedBy=" + wanted_by
@@ -274,7 +275,7 @@ module.exports = {
 				}
 				
 				// looks like we have a systemd service
-				cp.exec( "systemctl disable " + args.service_name + ".service", function() {
+				cp.exec( "systemctl disable " + args.service_name + ".service && systemctl daemon-reload", function() {
 					fs.unlink( args.service_file, callback );
 				} );
 			}); // fs.access
