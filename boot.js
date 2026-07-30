@@ -1,11 +1,12 @@
 // PixlBoot API
 // Install service to run on server startup
 // Works on Linux (RedHat / Ubuntu) and OS X
-// Copyright (c) 2016 - 2019 Joseph Huckaby and PixlCore.com
+// Copyright (c) 2016 - 2026 Joseph Huckaby and PixlCore.com
 // MIT License
 
 var fs = require('fs');
 var cp = require('child_process');
+var Tools = require('pixl-cli').Tools;
 
 module.exports = {
 	
@@ -53,44 +54,31 @@ module.exports = {
 	install_linux: function(args, callback) {
 		// install linux systemd or init.d service
 		// first determine if we're on RedHat (CentOS / Fedora) or Debian (Ubuntu)
-		var self = this;
-		
 		args.service_name = args.name.toLowerCase().replace(/\W+/g, '');
 		
-		cp.exec("which systemctl", function(err, stdout, stderr) {
-			if (err) {
-				// oops, try one of the legacy methods
-				cp.exec("which chkconfig", function(err, stdout, stderr) {
-					if (err) {
-						// not redhat, but are we on debian?
-						cp.exec("which update-rc.d", function(err, stdout, stderr) {
-							if (err) {
-								// not a supported linux platform
-								callback( new Error("Unsupported platform: No systemctl, chkconfig nor update-rc.d found.") );
-							}
-							else {
-								// we're on legacy debian
-								self.install_linux_debian(args, callback);
-							}
-						});
-					}
-					else {
-						// we're on legacy redhat
-						self.install_linux_redhat(args, callback);
-					}
-				});
-				return;
-			}
-			else {
-				// proceed with modern linux systemd
-				self.install_linux_systemd(args, callback);
-			}
-		});
+		// Locate service management tools directly instead of relying on the
+		// optional `which` command (not installed by default on Rocky Linux 10).
+		// Keep the absolute path so this also works with a minimal root PATH.
+		if (args.systemctl = Tools.findBinSync('systemctl')) {
+			return this.install_linux_systemd(args, callback);
+		}
+		else if (args.chkconfig = Tools.findBinSync('chkconfig')) {
+			// legacy RedHat / CentOS
+			return this.install_linux_redhat(args, callback);
+		}
+		else if (args.update_rc_d = Tools.findBinSync('update-rc.d')) {
+			// legacy Debian / Ubuntu
+			return this.install_linux_debian(args, callback);
+		}
+		
+		// not a supported linux platform
+		callback( new Error("Unsupported platform: No systemctl, chkconfig nor update-rc.d found.") );
 	},
 	
 	install_linux_systemd: function(args, callback) {
 		// install service on linux with systemd (systemctl)
 		args.service_file = "/etc/systemd/system/" + args.service_name + ".service";
+		var systemctl = args.systemctl || Tools.findBinSync('systemctl') || 'systemctl';
 		var service_type = args.linux_type;
 		var unit_after = args.linux_after;
 		var wanted_by = args.linux_wanted_by;
@@ -115,17 +103,17 @@ module.exports = {
 			if (err) return callback( new Error("Failed to write file: " + args.service_file + ": " + err.message) );
 			
 			// reload systemd
-			cp.exec("systemctl daemon-reload", function(err, stdout, stderr) {
-				if (err) callback( new Error("Failed to activate service: " + args.service_name + ": " + err.message) );
+			cp.execFile(systemctl, ['daemon-reload'], function(err, stdout, stderr) {
+				if (err) return callback( new Error("Failed to activate service: " + args.service_name + ": " + err.message) );
 				
 				// activate service
-				cp.exec("systemctl enable " + args.service_name + ".service", function(err, stdout, stderr) {
-					if (err) callback( new Error("Failed to activate service: " + args.service_name + ": " + err.message) );
+				cp.execFile(systemctl, ['enable', args.service_name + '.service'], function(err, stdout, stderr) {
+					if (err) return callback( new Error("Failed to activate service: " + args.service_name + ": " + err.message) );
 					
 					// success
 					callback();
-				}); // cp.exec
-			}); // cp.exec
+				}); // cp.execFile
+			}); // cp.execFile
 		}); // fs.writeFile
 	},
 	
@@ -133,6 +121,7 @@ module.exports = {
 		// install service on redhat (chkconfig)
 		// (this is legacy, only used if systemd/systemctl is not on system)
 		args.service_file = "/etc/init.d/" + args.service_name;
+		var chkconfig = args.chkconfig || Tools.findBinSync('chkconfig') || 'chkconfig';
 		var runlevels = args.linux_runlevels.toString().replace(/\D+/g, '');
 		var rh_start_priority = this.zeroPad(args.redhat_start_priority, 2);
 		var rh_stop_priority = this.zeroPad(args.redhat_stop_priority, 2);
@@ -153,12 +142,12 @@ module.exports = {
 			if (err) return callback( new Error("Failed to write file: " + args.service_file + ": " + err.message) );
 			
 			// activate service
-			cp.exec("chkconfig " + args.service_name + " on", function(err, stdout, stderr) {
-				if (err) callback( new Error("Failed to activate service: " + args.service_name + ": " + err.message) );
+			cp.execFile(chkconfig, [args.service_name, 'on'], function(err, stdout, stderr) {
+				if (err) return callback( new Error("Failed to activate service: " + args.service_name + ": " + err.message) );
 				
 				// success
 				callback();
-			}); // cp.exec
+			}); // cp.execFile
 		}); // fs.writeFile
 	},
 	
@@ -166,6 +155,7 @@ module.exports = {
 		// install service on debian (update-rc.d)
 		// (this is legacy, only used if systemd/systemctl is not on system)
 		args.service_file = "/etc/init.d/" + args.service_name;
+		var update_rc_d = args.update_rc_d || Tools.findBinSync('update-rc.d') || 'update-rc.d';
 		var runlevels = args.linux_runlevels.toString().replace(/\D+/g, '').split('').join(" ");
 		var deb_stoplevels = args.debian_stoplevels.toString().replace(/\D+/g, '').split('').join(" ");
 		var deb_requires = args.debian_requires.split(/\W+/).map( function(req) { return '$' + req; } ).join(" ");
@@ -191,14 +181,14 @@ module.exports = {
 			if (err) return callback( new Error("Failed to write file: " + args.service_file + ": " + err.message) );
 			
 			// activate service
-			cp.exec("update-rc.d " + args.service_name + " defaults", function(err, stdout, stderr) {
+			cp.execFile(update_rc_d, [args.service_name, 'defaults'], function(err, stdout, stderr) {
 				if (err) {
 					callback( new Error("Failed to activate service: " + args.service_name + ": " + err.message) );
 				} else {
 					// success
 					callback();
 				}
-			}); // cp.exec
+			}); // cp.execFile
 		}); // fs.writeFile
 	},
 	
