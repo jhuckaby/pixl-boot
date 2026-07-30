@@ -3,3 +3,4 @@ node_modules/
 conf/config.json
 test/test.log
 logs/
+work/
