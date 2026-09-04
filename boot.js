@@ -93,6 +93,7 @@ module.exports = {
 			"ExecStart=" + args.script + " start",
 			"ExecStop=" + args.script + " stop",
 			"KillMode=none",
+			"OOMPolicy=continue",
 			"",
 			"[Install]",
 			"WantedBy=" + wanted_by
