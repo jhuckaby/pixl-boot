@@ -222,6 +222,9 @@ module.exports = {
 				"\t" + '<true/>',
 				"\t" + '<key>KeepAlive</key>',
 				"\t" + '<false/>',
+				// Default ProcessType is Standard, which throttles CPU and IO for the daemon and its child processes
+				"\t" + '<key>ProcessType</key>',
+				"\t" + '<string>Interactive</string>',
 			'</dict>',
 			'</plist>'
 		].join("\n") + "\n";
