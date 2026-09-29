@@ -20,6 +20,9 @@ module.exports = {
 		linux_after: "network.target",
 		linux_wanted_by: "multi-user.target",
 		
+		// launchd stuff (macOS)
+		darwin_interactive: false,
+		
 		// init.d stuff (legacy)
 		linux_runlevels: "3,4,5",
 		redhat_start_priority: "99",
@@ -207,7 +210,7 @@ module.exports = {
 			args.plist_file = process.env.HOME + "/Library/LaunchAgents/com." + args.company_name + "." + args.service_name + ".plist";
 		}
 		
-		var plist_contents = [
+		var plist_lines = [
 			'<?xml version="1.0" encoding="UTF-8"?>',
 			'<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
 			'<plist version="1.0">',
@@ -221,10 +224,18 @@ module.exports = {
 				"\t" + '<key>RunAtLoad</key>',
 				"\t" + '<true/>',
 				"\t" + '<key>KeepAlive</key>',
-				"\t" + '<false/>',
-			'</dict>',
-			'</plist>'
-		].join("\n") + "\n";
+				"\t" + '<false/>'
+		];
+		
+		// Only remove launchd's default CPU and I/O throttling when explicitly requested.
+		// Accept both the JavaScript boolean and the CLI value "true".
+		if ((args.darwin_interactive === true) || (args.darwin_interactive === 'true')) {
+			plist_lines.push( "\t" + '<key>ProcessType</key>' );
+			plist_lines.push( "\t" + '<string>Interactive</string>' );
+		}
+		
+		plist_lines.push( '</dict>', '</plist>' );
+		var plist_contents = plist_lines.join("\n") + "\n";
 		
 		// write plist config file
 		fs.writeFile( args.plist_file, plist_contents, { mode: '644' }, function(err) {

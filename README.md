@@ -106,6 +106,16 @@ Add `--linux_wanted_by` if you want to customize the `WantedBy` property in the 
 }
 ```
 
+### darwin_interactive
+
+Add `--darwin_interactive` to set the macOS launchd `ProcessType` to `Interactive`.  This removes the light CPU and I/O throttling that launchd applies by default.  Use it for services whose work needs to run promptly, such as a dedicated job runner.  It may increase resource contention, heat, and power use while the service is busy.  By default, this option is disabled and the `ProcessType` key is omitted.  Example:
+
+```js
+"scripts": {
+	"boot": "pixl-boot install --darwin_interactive"
+}
+```
+
 ## Sample Shell Control Script
 
 Your module is expected to provide a simple shell (or Node.js) control script, which will start and stop your daemon based on CLI commands.  Stopping your daemon from a shell script is usually accomplished by using a [PID File](https://en.wikipedia.org/wiki/Process_identifier#Pidfile).  If you do not have one of these scripts handy, we provide a sample one for you:
@@ -144,7 +154,8 @@ let opts = {
 	script: "bin/control.sh",
 	linux_type: "forking",
 	linux_after: "network.target",
-	linux_wanted_by: "multi-user.target"
+	linux_wanted_by: "multi-user.target",
+	darwin_interactive: true
 };
 
 // install startup service
